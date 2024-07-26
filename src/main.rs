@@ -1,17 +1,8 @@
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::Context;
 use clap::Parser;
-use hickory_resolver::name_server::TokioConnectionProvider;
-use hickory_server::authority::Catalog;
-use hickory_server::proto::rr::Name;
-use hickory_server::server::Protocol::Tcp;
 use hickory_server::ServerFuture;
-use hickory_server::store::forwarder::ForwardAuthority;
-use rustls::{Certificate, PrivateKey};
-use tokio::fs;
 use tokio::net::{TcpListener, UdpSocket};
 
 use crate::authority::new_catalog;
