@@ -6,6 +6,7 @@ use crate::opt::Opt;
 mod tls;
 mod dns;
 pub mod opt;
+mod authority;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

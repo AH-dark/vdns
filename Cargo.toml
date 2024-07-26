@@ -20,3 +20,5 @@ rustls = { version = "0.21", features = ["default"] }
 rustls-pemfile = "1.0.4"
 hickory-resolver = { version = "0.25.0-alpha.1", features = ["dns-over-h3", "dns-over-quic", "dns-over-rustls", "dns-over-https-rustls"] }
 hickory-server = { version = "0.25.0-alpha.1", features = ["dns-over-h3", "dns-over-quic", "dns-over-rustls", "dns-over-https-rustls"] }
+config = "0.14.0"
+async-trait = "0.1.81"

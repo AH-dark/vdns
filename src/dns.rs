@@ -1,20 +1,24 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use hickory_resolver::Name;
-use hickory_resolver::name_server::TokioConnectionProvider;
+use hickory_resolver::{Name, TokioAsyncResolver};
+use hickory_resolver::config::{ResolverConfig, ResolverOpts};
 use hickory_server::authority::Catalog;
 use hickory_server::ServerFuture;
-use hickory_server::store::forwarder::ForwardAuthority;
 use tokio::net::{TcpListener, UdpSocket};
 
+use crate::authority::ForwardAuthority;
 use crate::opt::Opt;
 use crate::tls::new_tls_key_pair;
 
 pub async fn new_catalog() -> anyhow::Result<Catalog> {
-    let connection_provider = TokioConnectionProvider::default();
+    let resolver = TokioAsyncResolver::tokio(
+        ResolverConfig::google_h3(),
+        ResolverOpts::default(),
+    );
+
     let forwarder = Arc::new(
-        ForwardAuthority::new(connection_provider)
+        ForwardAuthority::new(resolver)
             .map_err(|e| {
                 anyhow::anyhow!("Failed to create forwarder: {:?}", e)
             })?
