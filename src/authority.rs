@@ -7,7 +7,6 @@
 
 use std::io;
 
-use hickory_resolver::name_server::TokioConnectionProvider;
 use hickory_server::{
     authority::{
         Authority, LookupError, LookupObject, LookupOptions, MessageRequest, UpdateResult, ZoneType,
@@ -16,11 +15,11 @@ use hickory_server::{
         op::ResponseCode,
         rr::{LowerName, Name, Record, RecordType},
     },
-    resolver::{config::ResolverConfig, lookup::Lookup as ResolverLookup, TokioAsyncResolver},
+    resolver::{lookup::Lookup as ResolverLookup, TokioAsyncResolver},
     server::RequestInfo,
-    store::forwarder::ForwardConfig,
 };
-use tracing::{debug, info};
+use metrics::{counter, gauge};
+use tracing::debug;
 
 /// An authority that will forward resolutions to upstream resolvers.
 ///
@@ -48,13 +47,11 @@ impl Authority for ForwardAuthority {
     type Lookup = ForwardLookup;
 
     /// Always Forward
-    #[tracing::instrument]
     fn zone_type(&self) -> ZoneType {
         ZoneType::Forward
     }
 
     /// Always false for Forward zones
-    #[tracing::instrument]
     fn is_axfr_allowed(&self) -> bool {
         false
     }
@@ -69,19 +66,24 @@ impl Authority for ForwardAuthority {
     /// In the context of a forwarder, this is either a zone which this forwarder is associated,
     ///   or `.`, the root zone for all zones. If this is not the root zone, then it will only forward
     ///   for lookups which match the given zone name.
-    #[tracing::instrument]
     fn origin(&self) -> &LowerName {
         &self.origin
     }
 
     /// Forwards a lookup given the resolver configuration for this Forwarded zone
-    #[tracing::instrument(err)]
     async fn lookup(
         &self,
         name: &LowerName,
         rtype: RecordType,
         _lookup_options: LookupOptions,
     ) -> Result<Self::Lookup, LookupError> {
+        counter!(
+            "hickory_server.lookup", 
+            "name" => name.to_string(), 
+            "record_type" => rtype.to_string()
+        )
+            .increment(1);
+
         // TODO: make this an error?
         debug_assert!(self.origin.zone_of(name));
 
@@ -92,12 +94,19 @@ impl Authority for ForwardAuthority {
         resolve.map(ForwardLookup).map_err(LookupError::from)
     }
 
-    #[tracing::instrument(err, skip(request_info))]
     async fn search(
         &self,
         request_info: RequestInfo<'_>,
         lookup_options: LookupOptions,
     ) -> Result<Self::Lookup, LookupError> {
+        counter!(
+            "hickory_server.search", 
+            "name" => request_info.query.name().to_string(),
+            "record_type" => request_info.query.query_type().to_string(),
+            "protocol" => request_info.protocol.to_string()
+        )
+            .increment(1);
+
         self.lookup(
             request_info.query.name(),
             request_info.query.query_type(),
@@ -106,7 +115,6 @@ impl Authority for ForwardAuthority {
             .await
     }
 
-    #[tracing::instrument(err)]
     async fn get_nsec_records(
         &self,
         _name: &LowerName,

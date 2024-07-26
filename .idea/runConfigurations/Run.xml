@@ -3,6 +3,7 @@
     <option name="command" value="run --package vdns --bin vdns -- test/certificate.pem test/private_key.pem" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <envs>
+      <env name="metrics_exporter_type" value="prometheus" />
       <env name="RUST_LOG" value="debug" />
     </envs>
     <option name="emulateTerminal" value="true" />

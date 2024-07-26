@@ -7,10 +7,14 @@ mod tls;
 mod dns;
 pub mod opt;
 mod authority;
+mod observability;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
+    let observability_config = envy::from_env::<observability::config::ObservabilityConfig>()?;
+    observability::init("vdns".into(), env!("CARGO_PKG_VERSION").into(), &observability_config)?;
+    log::debug!("Observability initialized, configurion: {:?}", observability_config);
+
     let options = Opt::parse();
 
     let catalog = new_catalog().await?;

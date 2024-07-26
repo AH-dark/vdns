@@ -13,8 +13,20 @@ anyhow = "1.0"
 thiserror = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+envy = "0.4.2"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-opentelemetry = { version = "0.24" }
+opentelemetry = { version = "0.23", features = ["trace", "metrics"] }
+opentelemetry-otlp = { version = "0.16", features = ["trace", "metrics", "grpc-tonic", "http-proto"] }
+opentelemetry_sdk = { version = "0.23", features = ["rt-tokio"] }
+opentelemetry-http = { version = "0.13", features = ["reqwest-rustls"] }
+opentelemetry-semantic-conventions = "0.16"
+metrics = "0.23.0"
+metrics-tracing-context = "0.16.0"
+metrics-exporter-prometheus = { version = "0.15.3", default-features = false, features = ["http-listener"] }
+metrics-util = "0.17.0"
 
 rustls = { version = "0.21", features = ["default"] }
 rustls-pemfile = "1.0.4"
@@ -22,3 +34,4 @@ hickory-resolver = { version = "0.25.0-alpha.1", features = ["dns-over-h3", "dns
 hickory-server = { version = "0.25.0-alpha.1", features = ["dns-over-h3", "dns-over-quic", "dns-over-rustls", "dns-over-https-rustls"] }
 config = "0.14.0"
 async-trait = "0.1.81"
+hyper = "1.4.1"
