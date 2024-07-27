@@ -2,18 +2,26 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use hickory_resolver::{Name, TokioAsyncResolver};
-use hickory_resolver::config::{ResolverConfig, ResolverOpts};
+use hickory_resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
 use hickory_server::authority::Catalog;
 use hickory_server::ServerFuture;
 use tokio::net::{TcpListener, UdpSocket};
 
 use crate::authority::ForwardAuthority;
-use crate::opt::DnsOptions;
+use crate::opt::{DnsOptions, Upstream};
 use crate::tls::new_tls_key_pair;
 
-pub async fn new_catalog() -> anyhow::Result<Catalog> {
+pub async fn new_catalog(options: &DnsOptions) -> anyhow::Result<Catalog> {
     let resolver = TokioAsyncResolver::tokio(
-        ResolverConfig::google_h3(),
+        match &options.upstream {
+            Upstream::Google => ResolverConfig::google(),
+            Upstream::GoogleH3 => ResolverConfig::google_https(),
+            Upstream::GoogleTLS => ResolverConfig::google_tls(),
+            Upstream::Cloudflare => ResolverConfig::cloudflare(),
+            Upstream::CloudflareTLS => ResolverConfig::cloudflare_tls(),
+            Upstream::CloudflareHTTPS => ResolverConfig::cloudflare_https(),
+            Upstream::Quad9 => ResolverConfig::quad9(),
+        },
         ResolverOpts::default(),
     );
 

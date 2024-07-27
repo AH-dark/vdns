@@ -8,4 +8,19 @@ pub struct DnsOptions {
     pub dns_listen: Option<String>,
     #[serde(default)]
     pub tls_listen: Option<String>,
+    #[serde(default)]
+    pub upstream: Upstream,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Upstream {
+    #[default]
+    Google,
+    GoogleH3,
+    GoogleTLS,
+    Cloudflare,
+    CloudflareTLS,
+    CloudflareHTTPS,
+    Quad9,
 }
