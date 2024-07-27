@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
 
     let options = envy::prefixed("VDNS_").from_env::<DnsOptions>()?;
 
-    let catalog = new_catalog().await?;
+    let catalog = new_catalog(&options).await?;
     run_dns_server(&options, catalog).await?;
 
     Ok(())
