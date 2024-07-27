@@ -22,11 +22,13 @@ spec:
       containers:
         - name: vdns
           image: vdns
+          command:
+            - "/usr/local/bin/vdns"
           args:
             - "/app/certificates/cert.pem"
             - "/app/certificates/key.pem"
           volumeMounts:
-            - mountPath: /app
+            - mountPath: /app/certificates
               name: certificates
           imagePullPolicy: IfNotPresent
           envFrom:
@@ -42,7 +44,3 @@ spec:
             - containerPort: 9090
               protocol: TCP
       restartPolicy: Always
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
