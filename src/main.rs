@@ -1,7 +1,7 @@
 use clap::Parser;
 
 use crate::dns::{new_catalog, run_dns_server};
-use crate::opt::Opt;
+use crate::opt::DnsOptions;
 
 mod tls;
 mod dns;
@@ -15,7 +15,7 @@ async fn main() -> anyhow::Result<()> {
     observability::init("vdns".into(), env!("CARGO_PKG_VERSION").into(), &observability_config)?;
     log::debug!("Observability initialized, configurion: {:?}", observability_config);
 
-    let options = Opt::parse();
+    let options = envy::prefixed("VDNS_").from_env::<DnsOptions>()?;
 
     let catalog = new_catalog().await?;
     run_dns_server(&options, catalog).await?;

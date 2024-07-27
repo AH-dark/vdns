@@ -8,7 +8,7 @@ use hickory_server::ServerFuture;
 use tokio::net::{TcpListener, UdpSocket};
 
 use crate::authority::ForwardAuthority;
-use crate::opt::Opt;
+use crate::opt::DnsOptions;
 use crate::tls::new_tls_key_pair;
 
 pub async fn new_catalog() -> anyhow::Result<Catalog> {
@@ -30,7 +30,7 @@ pub async fn new_catalog() -> anyhow::Result<Catalog> {
     Ok(catalog)
 }
 
-pub async fn run_dns_server(options: &Opt, catalog: Catalog) -> anyhow::Result<()> {
+pub async fn run_dns_server(options: &DnsOptions, catalog: Catalog) -> anyhow::Result<()> {
     let mut server_future = ServerFuture::new(catalog);
 
     let tls_listen = options.tls_listen.clone().unwrap_or("0.0.0.0:853".into());
