@@ -5,7 +5,7 @@ use hickory_proto::op::{Query, ResponseCode};
 use hickory_proto::rr::{LowerName, Name, RecordType};
 use hickory_resolver::error::ResolveError;
 use hickory_resolver::lookup::Lookup;
-use hickory_server::authority::{Authority, AuthorityObject, LookupError, LookupOptions, MessageRequest, UpdateResult, ZoneType};
+use hickory_server::authority::{Authority, LookupError, LookupOptions, MessageRequest, UpdateResult, ZoneType};
 use hickory_server::server::RequestInfo;
 use hickory_server::store::forwarder::ForwardLookup;
 

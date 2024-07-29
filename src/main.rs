@@ -9,7 +9,7 @@ use tokio::net::{TcpListener, UdpSocket};
 
 use crate::authority::VDnsAuthority;
 use crate::types::rule;
-use crate::types::rule::{Listener, PluginType, Server};
+use crate::types::rule::{Listener, PluginType};
 
 mod utils;
 mod observability;

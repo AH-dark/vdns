@@ -8,7 +8,6 @@ use crate::plugin::Plugin;
 #[derive(Clone, Debug)]
 pub struct Cache {
     tag: String,
-    size: usize,
     lazy_cache_ttl: Option<u64>,
 
     /// `Query` is the key, `Vec<Record>` is the value, and `chrono::NaiveDateTime` is the store timestamp
@@ -25,7 +24,6 @@ impl Cache {
 
         Self {
             tag,
-            size: size.unwrap_or(1024),
             lazy_cache_ttl,
 
             cache,
