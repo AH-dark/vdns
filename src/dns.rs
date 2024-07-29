@@ -8,8 +8,8 @@ use hickory_server::ServerFuture;
 use tokio::net::{TcpListener, UdpSocket};
 
 use crate::authority::ForwardAuthority;
-use crate::opt::{DnsOptions, Upstream};
 use crate::tls::new_tls_key_pair;
+use crate::types::opt::{DnsOptions, Upstream};
 
 pub async fn new_catalog(options: &DnsOptions) -> anyhow::Result<Catalog> {
     let resolver = TokioAsyncResolver::tokio(

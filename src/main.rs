@@ -1,13 +1,14 @@
 use clap::Parser;
 
+use types::opt::DnsOptions;
+
 use crate::dns::{new_catalog, run_dns_server};
-use crate::opt::DnsOptions;
 
 mod tls;
 mod dns;
-pub mod opt;
 mod authority;
 mod observability;
+pub mod types;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
