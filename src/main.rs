@@ -1,12 +1,8 @@
-use clap::Parser;
+use anyhow::Context;
 
-use types::opt::DnsOptions;
+use crate::types::rule;
 
-use crate::dns::{new_catalog, run_dns_server};
-
-mod tls;
-mod dns;
-mod authority;
+mod utils;
 mod observability;
 pub mod types;
 
@@ -16,10 +12,20 @@ async fn main() -> anyhow::Result<()> {
     observability::init("vdns".into(), env!("CARGO_PKG_VERSION").into(), &observability_config)?;
     log::debug!("Observability initialized, configurion: {:?}", observability_config);
 
-    let options = envy::prefixed("VDNS_").from_env::<DnsOptions>()?;
+    let rules_config = config::Config::builder()
+        .add_source(config::File::with_name("config/rules").required(false))
+        .add_source(config::File::with_name("config").required(false))
+        .add_source(config::Environment::with_prefix("RULES"))
+        .build()
+        .context("failed to build configuration")?;
 
-    let catalog = new_catalog(&options).await?;
-    run_dns_server(&options, catalog).await?;
+    let rules = rules_config.try_deserialize::<rule::Config>().context("failed to deserialize configuration")?;
 
+    run(&rules).await.context("failed to run")?;
+
+    Ok(())
+}
+
+async fn run(config: &rule::Config) -> anyhow::Result<()> {
     Ok(())
 }
