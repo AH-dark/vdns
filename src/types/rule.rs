@@ -11,17 +11,17 @@ pub struct Config {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub struct DataProvider {
-    tag: String,
-    file: PathBuf,
-    auto_reload: bool,
+    pub tag: String,
+    pub file: PathBuf,
+    pub auto_reload: bool,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub struct Plugin {
-    tag: String,
+    pub tag: String,
     #[serde(flatten)]
-    plugin_type: PluginType,
+    pub plugin_type: PluginType,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -84,43 +84,43 @@ pub enum PluginType {
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ForwardUpstream {
-    tag: Option<String>,
-    addr: Option<String>,
-    dial_addr: Option<String>,
-    bootstrap: Option<String>,
-    bootstrap_version: Option<i8>,
-    socks5: Option<String>,
-    idle_timeout: Option<u64>,
-    enable_pipeline: bool,
-    enable_http3: bool,
-    max_conns: Option<u32>,
-    insecure_skip_verify: bool,
-    so_mark: u32,
-    bind_to_device: String,
+    pub tag: Option<String>,
+    pub addr: Option<String>,
+    pub dial_addr: Option<String>,
+    pub bootstrap: Option<String>,
+    pub bootstrap_version: Option<i8>,
+    pub socks5: Option<String>,
+    pub idle_timeout: Option<u64>,
+    pub enable_pipeline: bool,
+    pub enable_http3: bool,
+    pub max_conns: Option<u32>,
+    pub insecure_skip_verify: bool,
+    pub so_mark: u32,
+    pub bind_to_device: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct HttpServerEntry {
-    path: String,
-    exec: String,
+    pub path: String,
+    pub exec: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub struct Server {
-    exec: String,
-    timeout: Option<u64>,
-    listeners: Vec<Listener>,
+    pub exec: String,
+    pub timeout: Option<u64>,
+    pub listeners: Vec<Listener>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "protocol")]
 pub enum Listener {
-    Udp {
+    Tcp {
         addr: String,
     },
-    Tcp {
+    Udp {
         addr: String,
     },
     Http {
@@ -129,6 +129,11 @@ pub enum Listener {
         get_user_ip_from_header: Option<String>,
     },
     Tls {
+        addr: String,
+        cert: PathBuf,
+        key: PathBuf,
+    },
+    Quic {
         addr: String,
         cert: PathBuf,
         key: PathBuf,

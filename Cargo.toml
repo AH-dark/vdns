@@ -16,6 +16,8 @@ serde = { version = "1.0", features = ["derive"] }
 envy = "0.4.2"
 config = { version = "0.14.0", features = ["async"] }
 async-trait = "0.1.81"
+moka = { version = "0.12.8", features = ["future"] }
+chrono = "0.4"
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -34,3 +36,4 @@ rustls = { version = "0.21", features = ["default"] }
 rustls-pemfile = "1.0.4"
 hickory-resolver = { version = "0.25.0-alpha.1", features = ["dns-over-h3", "dns-over-quic", "dns-over-rustls", "dns-over-https-rustls"] }
 hickory-server = { version = "0.25.0-alpha.1", features = ["dns-over-h3", "dns-over-quic", "dns-over-rustls", "dns-over-https-rustls"] }
+hickory-proto = { version = "0.25.0-alpha.1" }
