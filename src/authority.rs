@@ -1,148 +1,95 @@
-// Copyright 2015-2021 Benjamin Fry <benjaminfry@me.com>
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// https://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// https://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
+use std::sync::Arc;
 
-use std::io;
+use async_trait::async_trait;
+use hickory_proto::op::{Query, ResponseCode};
+use hickory_proto::rr::{LowerName, Name, Record, RecordType};
+use hickory_resolver::error::ResolveError;
+use hickory_resolver::lookup::Lookup;
+use hickory_server::authority::{Authority, LookupError, LookupOptions, MessageRequest, UpdateResult, ZoneType};
+use hickory_server::server::RequestInfo;
+use hickory_server::store::forwarder::ForwardLookup;
 
-use hickory_server::{
-    authority::{
-        Authority, LookupError, LookupObject, LookupOptions, MessageRequest, UpdateResult, ZoneType,
-    },
-    proto::{
-        op::ResponseCode,
-        rr::{LowerName, Name, Record, RecordType},
-    },
-    resolver::{lookup::Lookup as ResolverLookup, TokioAsyncResolver},
-    server::RequestInfo,
-};
-use metrics::{counter, gauge};
-use tracing::debug;
+use crate::app::App;
 
-/// An authority that will forward resolutions to upstream resolvers.
-///
-/// This uses the hickory-resolver for resolving requests.
 #[derive(Clone, Debug)]
-pub struct ForwardAuthority {
+pub struct VDnsAuthority {
+    app: Arc<App>,
+    entry: String,
     origin: LowerName,
-    resolver: TokioAsyncResolver,
 }
 
-impl ForwardAuthority {
-    /// TODO: change this name to create or something
-    #[allow(clippy::new_without_default)]
-    #[doc(hidden)]
-    pub fn new(resolver: TokioAsyncResolver) -> Result<Self, String> {
-        Ok(Self {
-            origin: Name::root().into(),
-            resolver,
-        })
+impl VDnsAuthority {
+    pub fn new(app: Arc<App>, entry: String) -> Self {
+        Self {
+            origin: LowerName::from(Name::root()),
+            entry,
+            app,
+        }
+    }
+
+    #[tracing::instrument]
+    async fn query(&self, query: &Query) -> Vec<Record> {
+        let mut next_plugin = Some(self.entry.clone());
+        while let Some(name) = &next_plugin {
+            let plugin = self.app.get_plugin(&name).unwrap();
+            let result = plugin.exec(&self.app, &query).await.map_err(|e| ResolveError::from(e.to_string()));
+            match result {
+                Ok(result) => {
+                    if !result.records.is_empty() {
+                        return result.records;
+                    }
+
+                    next_plugin = result.next;
+                }
+                Err(err) => {
+                    tracing::warn!(plugin = &plugin.tag(), "error: {}", err);
+                    continue;
+                }
+            }
+        }
+
+        vec![]
     }
 }
 
-#[async_trait::async_trait]
-impl Authority for ForwardAuthority {
+#[async_trait]
+impl Authority for VDnsAuthority {
     type Lookup = ForwardLookup;
 
-    /// Always Forward
     fn zone_type(&self) -> ZoneType {
         ZoneType::Forward
     }
 
-    /// Always false for Forward zones
     fn is_axfr_allowed(&self) -> bool {
         false
     }
 
-    #[tracing::instrument(err)]
-    async fn update(&self, _update: &MessageRequest) -> UpdateResult<bool> {
+    async fn update(&self, _: &MessageRequest) -> UpdateResult<bool> {
         Err(ResponseCode::NotImp)
     }
 
-    /// Get the origin of this zone, i.e. example.com is the origin for www.example.com
-    ///
-    /// In the context of a forwarder, this is either a zone which this forwarder is associated,
-    ///   or `.`, the root zone for all zones. If this is not the root zone, then it will only forward
-    ///   for lookups which match the given zone name.
     fn origin(&self) -> &LowerName {
         &self.origin
     }
 
-    /// Forwards a lookup given the resolver configuration for this Forwarded zone
-    async fn lookup(
-        &self,
-        name: &LowerName,
-        rtype: RecordType,
-        _lookup_options: LookupOptions,
-    ) -> Result<Self::Lookup, LookupError> {
-        counter!(
-            "hickory_server.lookup", 
-            "name" => name.to_string(), 
-            "record_type" => rtype.to_string()
-        )
-            .increment(1);
+    async fn lookup(&self, name: &LowerName, rtype: RecordType, _: LookupOptions) -> Result<Self::Lookup, LookupError> {
+        let query = Query::query(name.into(), rtype);
+        let records = self.query(&query).await;
 
-        // TODO: make this an error?
-        debug_assert!(self.origin.zone_of(name));
-
-        debug!("forwarding lookup: {} {}", name, rtype);
-        let name: LowerName = name.clone();
-        let resolve = self.resolver.lookup(name, rtype).await;
-
-        resolve.map(ForwardLookup).map_err(LookupError::from)
+        Ok(ForwardLookup(Lookup::new_with_max_ttl(query, Arc::from(records))))
     }
 
-    async fn search(
-        &self,
-        request_info: RequestInfo<'_>,
-        lookup_options: LookupOptions,
-    ) -> Result<Self::Lookup, LookupError> {
-        counter!(
-            "hickory_server.search", 
-            "name" => request_info.query.name().to_string(),
-            "record_type" => request_info.query.query_type().to_string(),
-            "protocol" => request_info.protocol.to_string()
-        )
-            .increment(1);
+    async fn search(&self, request_info: RequestInfo<'_>, _: LookupOptions) -> Result<Self::Lookup, LookupError> {
+        let query = request_info.query.original();
+        let records = self.query(&query).await;
 
-        self.lookup(
-            request_info.query.name(),
-            request_info.query.query_type(),
-            lookup_options,
-        )
-            .await
+        Ok(ForwardLookup(Lookup::new_with_max_ttl(query.clone(), Arc::from(records))))
     }
 
-    async fn get_nsec_records(
-        &self,
-        _name: &LowerName,
-        _lookup_options: LookupOptions,
-    ) -> Result<Self::Lookup, LookupError> {
-        Err(LookupError::from(io::Error::new(
-            io::ErrorKind::Other,
-            "Getting NSEC records is unimplemented for the forwarder",
-        )))
-    }
-}
+    async fn get_nsec_records(&self, name: &LowerName, _: LookupOptions) -> Result<Self::Lookup, LookupError> {
+        let query = Query::query(name.into(), RecordType::NSEC);
+        let records = self.query(&query).await;
 
-/// A structure that holds the results of a forwarding lookup.
-///
-/// This exposes an iterator interface for consumption downstream.
-#[derive(Clone, Debug)]
-pub struct ForwardLookup(pub ResolverLookup);
-
-impl LookupObject for ForwardLookup {
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    fn iter<'a>(&'a self) -> Box<dyn Iterator<Item=&'a Record> + Send + 'a> {
-        Box::new(self.0.record_iter())
-    }
-
-    fn take_additionals(&mut self) -> Option<Box<dyn LookupObject>> {
-        None
+        Ok(ForwardLookup(Lookup::new_with_max_ttl(query, Arc::from(records))))
     }
 }
