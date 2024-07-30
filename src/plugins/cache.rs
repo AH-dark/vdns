@@ -15,6 +15,7 @@ pub struct Cache {
 }
 
 impl Cache {
+    #[tracing::instrument]
     pub async fn new(
         tag: String,
         size: Option<usize>,
@@ -37,6 +38,7 @@ impl Plugin for Cache {
         self.tag.clone()
     }
 
+    #[tracing::instrument(err, skip(self))]
     async fn exec(&self, app: &App, query: &Query, parent: String) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
         let cache = self.cache.clone();
         let lazy_cache_ttl = self.lazy_cache_ttl;

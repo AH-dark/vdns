@@ -29,6 +29,7 @@ pub enum PluginType {
     },
     Forward {
         concurrent: Option<usize>,
+        idle_timeout: Option<u64>,
         upstreams: Vec<ForwardUpstream>,
     },
     Sequence {
@@ -81,24 +82,24 @@ impl PluginType {
             _ => false,
         }
     }
+
+    pub fn is_executable(&self) -> bool {
+        match self {
+            PluginType::Sequence { .. } => true,
+            PluginType::Cache { .. } => true,
+            PluginType::Hosts { .. } => true,
+            PluginType::Forward { .. } => true,
+
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ForwardUpstream {
-    pub tag: Option<String>,
-    pub addr: Option<String>,
-    pub dial_addr: Option<String>,
-    pub bootstrap: Option<String>,
-    pub bootstrap_version: Option<i8>,
-    pub socks5: Option<String>,
-    pub idle_timeout: Option<u64>,
-    pub enable_pipeline: bool,
-    pub enable_http3: bool,
-    pub max_conns: Option<u32>,
-    pub insecure_skip_verify: bool,
-    pub so_mark: u32,
-    pub bind_to_device: String,
+    pub tag: String,
+    pub addr: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]

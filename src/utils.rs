@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use rustls::{Certificate, PrivateKey};
@@ -73,7 +74,7 @@ fn kmp_search<T: PartialEq>(haystack: &[T], needle: &[T]) -> bool {
     false
 }
 
-pub type Matcher = Box<dyn Fn(String) -> bool>;
+pub type Matcher = Arc<dyn Fn(String) -> bool + Send + Sync + 'static>;
 
 /// Create a domain suffix matcher
 fn domain_suffix_match_fn(domain: &str) -> Matcher {
@@ -85,7 +86,7 @@ fn domain_suffix_match_fn(domain: &str) -> Matcher {
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
 
-    Box::new(move |test_domain: String| {
+    Arc::new(move |test_domain: String| {
         let parts = test_domain.split('.').rev().filter(|s| !s.is_empty()).collect::<Vec<_>>();
 
         if domain_parts.len() > parts.len() {
@@ -111,7 +112,7 @@ fn domain_full_match_fn(domain: &str) -> Matcher {
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
 
-    Box::new(move |test_domain: String| {
+    Arc::new(move |test_domain: String| {
         let parts = test_domain.split('.').rev().filter(|s| !s.is_empty()).collect::<Vec<_>>();
 
         if domain_parts.len() != parts.len() {
@@ -137,7 +138,7 @@ fn domain_keyword_match_fn(domain: &str) -> Matcher {
         .map(|s| s.to_string())
         .collect::<Vec<_>>();
 
-    Box::new(move |test_domain: String| {
+    Arc::new(move |test_domain: String| {
         let parts = test_domain
             .trim()
             .split('.')
@@ -152,7 +153,7 @@ fn domain_keyword_match_fn(domain: &str) -> Matcher {
 
 fn domain_regexp_match_fn(rule: &str) -> anyhow::Result<Matcher> {
     let re = regex::Regex::new(rule)?;
-    Ok(Box::new(move |test_domain: String| re.is_match(&test_domain)))
+    Ok(Arc::new(move |test_domain: String| re.is_match(&test_domain)))
 }
 
 pub fn parse_domain(domain: &str) -> anyhow::Result<Matcher> {

@@ -2797,6 +2797,7 @@ dependencies = [
  "chrono",
  "config",
  "envy",
+ "futures",
  "hickory-proto",
  "hickory-resolver",
  "hickory-server",
