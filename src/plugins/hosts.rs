@@ -9,7 +9,7 @@ use hickory_proto::rr::{RData, Record};
 use hickory_proto::rr::rdata::{A, AAAA};
 
 use crate::app::App;
-use crate::plugin::Plugin;
+use crate::plugin::{Plugin, PluginQueryResult};
 use crate::utils::{Matcher, parse_domain};
 
 #[derive(Clone)]
@@ -70,7 +70,7 @@ impl Plugin for Hosts {
     }
 
     #[tracing::instrument(err, skip(self))]
-    async fn exec(&self, _app: &App, query: &Query, _parent: String) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
+    async fn exec(&self, _app: &App, query: &Query) -> Result<PluginQueryResult, Box<dyn std::error::Error>> {
         let mut records = vec![];
         if let Some((matcher, ips)) = self.hosts.get(&query.name().to_string()) {
             if matcher(query.name().to_string()) {
@@ -85,6 +85,6 @@ impl Plugin for Hosts {
             }
         }
 
-        Ok(records)
+        Ok(PluginQueryResult::return_records(records))
     }
 }

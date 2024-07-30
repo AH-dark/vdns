@@ -2,13 +2,12 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use hickory_proto::op::Query;
-use hickory_proto::rr::Record;
 use hickory_resolver::config::{NameServerConfig, Protocol, ResolverConfig, ResolverOpts};
 use hickory_resolver::name_server::TokioConnectionProvider;
 use hickory_resolver::TokioAsyncResolver;
 
 use crate::app::App;
-use crate::plugin::Plugin;
+use crate::plugin::{Plugin, PluginQueryResult};
 use crate::types::rule::ForwardUpstream;
 
 #[derive(Debug, Clone)]
@@ -73,9 +72,9 @@ impl Plugin for Forward {
     }
 
     #[tracing::instrument(err, skip(self))]
-    async fn exec(&self, _: &App, query: &Query, _: String) -> Result<Vec<Record>, Box<dyn std::error::Error>> {
+    async fn exec(&self, _: &App, query: &Query) -> Result<PluginQueryResult, Box<dyn std::error::Error>> {
         let res = self.resolver.lookup(query.name().clone(), query.query_type()).await?;
-        Ok(res.records().into())
+        Ok(PluginQueryResult::return_records(res.records().into()))
     }
 }
 
