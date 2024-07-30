@@ -18,6 +18,7 @@ config = { version = "0.14.0", features = ["async"] }
 async-trait = "0.1.81"
 moka = { version = "0.12.8", features = ["future"] }
 chrono = "0.4"
+regex = "1.10"
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

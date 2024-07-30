@@ -9,7 +9,7 @@ use tokio::net::{TcpListener, UdpSocket};
 
 use crate::authority::VDnsAuthority;
 use crate::types::rule;
-use crate::types::rule::{Listener, PluginType};
+use crate::types::rule::PluginType;
 
 mod utils;
 mod observability;
@@ -42,12 +42,21 @@ async fn main() -> anyhow::Result<()> {
 async fn run(config: &rule::Config) -> anyhow::Result<()> {
     let mut plugins = BTreeMap::new();
     for plugin in &config.plugins {
-        let plugin_executor = match plugin.plugin_type {
+        let plugin_executor = match &plugin.plugin_type {
             PluginType::Cache { size, lazy_cache_ttl, .. } => {
                 let plugin = plugins::cache::Cache::new(
                     plugin.tag.clone(),
-                    size,
-                    lazy_cache_ttl,
+                    *size,
+                    *lazy_cache_ttl,
+                ).await;
+
+                Arc::new(plugin) as Arc<dyn plugin::Plugin>
+            }
+            PluginType::Hosts { entries, files } => {
+                let plugin = plugins::hosts::Hosts::new(
+                    plugin.tag.clone(),
+                    entries.clone(),
+                    files.clone(),
                 ).await;
 
                 Arc::new(plugin) as Arc<dyn plugin::Plugin>
@@ -60,37 +69,55 @@ async fn run(config: &rule::Config) -> anyhow::Result<()> {
 
     let app = app::App::new(plugins);
 
-    let servers = config.servers.clone();
+    let servers = config.plugins
+        .iter()
+        .filter(|p| p.plugin_type.is_server())
+        .cloned()
+        .collect::<Vec<_>>();
+
     for server in servers {
         let mut catalog = Catalog::new();
-        let authority = VDnsAuthority::new(app.clone(), server.exec.clone());
+        let authority = VDnsAuthority::new(app.clone(), {
+            match server.plugin_type {
+                PluginType::TcpServer { entry, .. } => entry,
+                PluginType::UdpServer { entry, .. } => entry,
+                PluginType::QuicServer { entry, .. } => entry,
+                PluginType::HttpServer { .. } => todo!("http server: {:?}", server),
+                _ => unreachable!("plugin: {:?}", server),
+            }
+        });
         catalog.upsert(Name::root().into(), Box::new(Arc::new(authority)));
 
         let mut svr = hickory_server::ServerFuture::new(catalog);
 
-        for listener in server.listeners {
-            match listener {
-                Listener::Tcp { addr } => svr.register_listener(TcpListener::bind(addr).await?, Duration::from_secs(5)),
-                Listener::Udp { addr } => svr.register_socket(UdpSocket::bind(addr).await?),
-                Listener::Quic { addr, cert, key } => {
-                    let (cert, key) = utils::new_tls_key_pair(&cert, &key).await?;
-                    svr.register_quic_listener(
-                        UdpSocket::bind(addr).await?,
-                        Duration::from_secs(5),
-                        (cert, key),
-                        None,
-                    )?
+        match server.plugin_type {
+            PluginType::TcpServer { listen, cert, key, idle_timeout, .. } => {
+                match (cert, key) {
+                    (Some(cert), Some(key)) => {
+                        let (cert, key) = utils::new_tls_key_pair(&cert, &key).await?;
+                        svr.register_tls_listener(
+                            TcpListener::bind(listen).await?,
+                            Duration::from_secs(idle_timeout.unwrap_or(30)),
+                            (cert, key),
+                        )?
+                    }
+                    _ => svr.register_listener(TcpListener::bind(listen).await?, Duration::from_secs(idle_timeout.unwrap_or(30))),
                 }
-                Listener::Tls { addr, cert, key } => {
-                    let (cert, key) = utils::new_tls_key_pair(&cert, &key).await?;
-                    svr.register_tls_listener(
-                        TcpListener::bind(addr).await?,
-                        Duration::from_secs(5),
-                        (cert, key),
-                    )?
-                }
-                _ => todo!("listener: {:?}", listener),
             }
+            PluginType::UdpServer { listen, .. } => svr.register_socket(UdpSocket::bind(listen).await?),
+            PluginType::QuicServer { listen, cert, key, idle_timeout, .. } => {
+                let (cert, key) = utils::new_tls_key_pair(&cert, &key).await?;
+                svr.register_quic_listener(
+                    UdpSocket::bind(listen).await?,
+                    Duration::from_secs(idle_timeout.unwrap_or(30)),
+                    (cert, key),
+                    None,
+                )?
+            }
+            PluginType::HttpServer { .. } => {
+                todo!("http server: {:?}", server)
+            }
+            _ => unreachable!("plugin: {:?}", server),
         }
     }
 

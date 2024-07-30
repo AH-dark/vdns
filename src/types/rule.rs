@@ -3,20 +3,10 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct Config {
-    pub data_providers: Vec<DataProvider>,
     pub plugins: Vec<Plugin>,
-    pub servers: Vec<Server>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub struct DataProvider {
-    pub tag: String,
-    pub file: PathBuf,
-    pub auto_reload: bool,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub struct Plugin {
     pub tag: String,
@@ -24,7 +14,7 @@ pub struct Plugin {
     pub plugin_type: PluginType,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum PluginType {
     Cache {
@@ -34,7 +24,7 @@ pub enum PluginType {
         dump_interval: Option<u64>,
     },
     Hosts {
-        entries: Vec<(String, String)>,
+        entries: Vec<String>,
         files: Vec<PathBuf>,
     },
     Forward {
@@ -59,8 +49,8 @@ pub enum PluginType {
     QuicServer {
         entry: String,
         listen: String,
-        cert: Option<PathBuf>,
-        key: Option<PathBuf>,
+        cert: PathBuf,
+        key: PathBuf,
         idle_timeout: Option<u64>,
     },
     HttpServer {
@@ -81,7 +71,19 @@ pub enum PluginType {
     },
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize)]
+impl PluginType {
+    pub fn is_server(&self) -> bool {
+        match self {
+            PluginType::UdpServer { .. } => true,
+            PluginType::TcpServer { .. } => true,
+            PluginType::QuicServer { .. } => true,
+            PluginType::HttpServer { .. } => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ForwardUpstream {
     pub tag: Option<String>,
@@ -99,43 +101,9 @@ pub struct ForwardUpstream {
     pub bind_to_device: String,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct HttpServerEntry {
     pub path: String,
     pub exec: String,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub struct Server {
-    pub exec: String,
-    pub timeout: Option<u64>,
-    pub listeners: Vec<Listener>,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "snake_case", tag = "protocol")]
-pub enum Listener {
-    Tcp {
-        addr: String,
-    },
-    Udp {
-        addr: String,
-    },
-    Http {
-        addr: String,
-        url_path: String,
-        get_user_ip_from_header: Option<String>,
-    },
-    Tls {
-        addr: String,
-        cert: PathBuf,
-        key: PathBuf,
-    },
-    Quic {
-        addr: String,
-        cert: PathBuf,
-        key: PathBuf,
-    },
 }
